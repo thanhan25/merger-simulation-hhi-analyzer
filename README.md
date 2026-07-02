@@ -8,7 +8,7 @@
 
 A Python library and interactive dashboard for HHI market concentration measurement and merger impact simulation, featuring native Google Cloud BigQuery integration.
 
-![Dashboard Preview](assets/dashboard-preview.PNG)
+![Dashboard Preview](assets/social-preview.png)
 
 ## 🧮 Econometric Methodology
 
