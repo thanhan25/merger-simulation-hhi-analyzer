@@ -1,6 +1,7 @@
 """
 Command Line Interface for the Merger Simulation toolkit.
 """
+
 import typer
 import pandas as pd
 from rich.console import Console
@@ -8,7 +9,7 @@ from rich.table import Table
 from rich.panel import Panel
 from .simulation import simulate_merger
 from .plotting import plot_merger_impact
-from .io import load_market_data
+from .io import load_market_data, load_market_data_from_bigquery
 
 app = typer.Typer(help="Antitrust & Competition Economics Merger Simulator")
 console = Console()
@@ -16,9 +17,7 @@ console = Console()
 
 @app.callback()
 def callback():
-    """
-    Quantitative Antitrust Toolkit for Market Concentration.
-    """
+    """Quantitative Antitrust Toolkit for Market Concentration."""
     pass
 
 
@@ -26,6 +25,12 @@ def callback():
 def analyze(
     acquirer: str = typer.Argument(..., help="Name of the acquiring firm"),
     target: str = typer.Argument(..., help="Name of the target firm"),
+    filepath: str = typer.Option(
+        None, "--file", "-f", help="Path to the market shares CSV"
+    ),
+    query: str = typer.Option(
+        None, "--query", "-q", help="Standard SQL query to execute in BigQuery"
+    ),
     mock_data: bool = typer.Option(
         False, "--mock", help="Use generated mock data instead of a CSV"
     ),
@@ -41,13 +46,28 @@ def analyze(
         }
         df = pd.DataFrame(data)
         console.print("[dim]Using mock dataset...[/dim]")
-    else:
+    elif query:
         try:
-            df = load_market_data("data/raw/mock_market_shares.csv")
-            console.print("[dim]Loaded data from data/raw/mock_market_shares.csv[/dim]")
+            console.print(f"[dim]Executing BigQuery SQL: {query}[/dim]")
+            df = load_market_data_from_bigquery(query)
+            console.print(
+                "[dim]Data successfully fetched and parsed from BigQuery.[/dim]"
+            )
+        except Exception as e:
+            console.print(f"[bold red]BigQuery Error:[/bold red] {e}")
+            raise typer.Exit(1)
+    elif filepath:
+        try:
+            df = load_market_data(filepath)
+            console.print(f"[dim]Loaded data from {filepath}[/dim]")
         except Exception as e:
             console.print(f"[bold red]Failed to load data:[/bold red] {e}")
             raise typer.Exit(1)
+    else:
+        console.print(
+            "[bold red]Error:[/bold red] You must provide --file, --query, or --mock."
+        )
+        raise typer.Exit(1)
 
     try:
         # 2. Run Simulation
