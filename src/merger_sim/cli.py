@@ -106,5 +106,18 @@ def analyze(
         raise typer.Exit(1)
 
 
+@app.command()
+def ui():
+    """
+    Launch the interactive Streamlit Web Dashboard.
+    """
+    import subprocess
+    from pathlib import Path
+
+    app_path = Path(__file__).parent / "app.py"
+    console.print("[bold green]Starting Streamlit Server...[/bold green]")
+    subprocess.run(["streamlit", "run", str(app_path)])
+
+
 if __name__ == "__main__":
     app()
