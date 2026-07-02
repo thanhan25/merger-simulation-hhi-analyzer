@@ -4,6 +4,7 @@ Command Line Interface for the Merger Simulation toolkit.
 
 import typer
 import pandas as pd
+from pathlib import Path
 from rich.console import Console
 from rich.table import Table
 from rich.panel import Panel
@@ -11,111 +12,83 @@ from .simulation import simulate_merger
 from .plotting import plot_merger_impact
 from .io import load_market_data, load_market_data_from_bigquery
 
-app = typer.Typer(help="Antitrust & Competition Economics Merger Simulator")
+app = typer.Typer(
+    help="Python library and CLI for HHI market concentration measurement."
+)
 console = Console()
-
-
-@app.callback()
-def callback():
-    """Quantitative Antitrust Toolkit for Market Concentration."""
-    pass
 
 
 @app.command()
 def analyze(
     acquirer: str = typer.Argument(..., help="Name of the acquiring firm"),
     target: str = typer.Argument(..., help="Name of the target firm"),
-    filepath: str = typer.Option(
-        None, "--file", "-f", help="Path to the market shares CSV"
+    filepath: str | None = typer.Option(None, "--file", "-f", help="Path to CSV"),
+    query: str | None = typer.Option(None, "--query", "-q", help="BigQuery SQL"),
+    mock_data: bool = typer.Option(False, "--mock", help="Use mock data"),
+    output_json: str | None = typer.Option(
+        None, "--output-json", help="Export results to JSON"
     ),
-    query: str = typer.Option(
-        None, "--query", "-q", help="Standard SQL query to execute in BigQuery"
+    output_csv: str | None = typer.Option(
+        None, "--output-csv", help="Export combined market shares to CSV"
     ),
-    mock_data: bool = typer.Option(
-        False, "--mock", help="Use generated mock data instead of a CSV"
+    no_plots: bool = typer.Option(
+        False, "--no-plots", help="Disable plotting for headless execution"
     ),
 ):
-    """
-    Simulate a merger and output HHI concentration metrics.
-    """
-    # 1. Load Data
+    """Simulate a merger and evaluate HHI regulatory risk."""
     if mock_data:
-        data = {
-            "Firm": ["Firm A", "Firm B", "Firm C", "Firm D", "Firm E", "Firm F"],
-            "Market_Share": [35.0, 25.0, 15.0, 12.0, 8.0, 5.0],
-        }
-        df = pd.DataFrame(data)
-        console.print("[dim]Using mock dataset...[/dim]")
-    elif query:
-        try:
-            console.print(f"[dim]Executing BigQuery SQL: {query}[/dim]")
-            df = load_market_data_from_bigquery(query)
-            console.print(
-                "[dim]Data successfully fetched and parsed from BigQuery.[/dim]"
-            )
-        except Exception as e:
-            console.print(f"[bold red]BigQuery Error:[/bold red] {e}")
-            raise typer.Exit(1)
-    elif filepath:
-        try:
-            df = load_market_data(filepath)
-            console.print(f"[dim]Loaded data from {filepath}[/dim]")
-        except Exception as e:
-            console.print(f"[bold red]Failed to load data:[/bold red] {e}")
-            raise typer.Exit(1)
-    else:
-        console.print(
-            "[bold red]Error:[/bold red] You must provide --file, --query, or --mock."
+        df = pd.DataFrame(
+            {"Firm": ["Firm A", "Firm B", "Firm C"], "Market_Share": [40.0, 30.0, 30.0]}
         )
+    elif query:
+        df = load_market_data_from_bigquery(query)
+    elif filepath:
+        df = load_market_data(filepath)
+    else:
+        console.print("[bold red]Error:[/bold red] Provide --file, --query, or --mock.")
         raise typer.Exit(1)
 
     try:
-        # 2. Run Simulation
-        results = simulate_merger(df, "Firm", "Market_Share", acquirer, target)
+        scenario = simulate_merger(df, "Firm", "Market_Share", acquirer, target)
 
-        # 3. Terminal Output via Rich
-        console.print(
-            Panel.fit(
-                f"[bold blue]Merger Simulation:[/bold blue] {acquirer} + {target}",
-                border_style="blue",
-            )
-        )
-
+        # UI Rendering
         table = Table(show_header=True, header_style="bold magenta")
         table.add_column("Metric")
         table.add_column("Value")
+        table.add_row("Pre-Merger HHI", f"{scenario.pre_hhi:.2f}")
+        table.add_row("Post-Merger HHI", f"[bold]{scenario.post_hhi:.2f}[/bold]")
+        table.add_row("HHI Delta (Δ)", f"[bold red]+{scenario.delta:.2f}[/bold red]")
+        table.add_row("Risk", scenario.regulatory_risk)
 
-        table.add_row("Pre-Merger HHI", str(results["hhi_pre"]))
-        table.add_row("Post-Merger HHI", f"[bold]{results['hhi_post']}[/bold]")
-        table.add_row("HHI Delta (Δ)", f"[bold red]+{results['delta']}[/bold red]")
-        table.add_row("Concentration Level", results["concentration_level"])
-
-        risk_color = "red" if "High Risk" in results["regulatory_risk"] else "yellow"
-        table.add_row(
-            "Regulatory Risk",
-            f"[{risk_color}]{results['regulatory_risk']}[/{risk_color}]",
+        console.print(
+            Panel(table, title=f"Merger: {acquirer} + {target}", border_style="blue")
         )
 
-        console.print(table)
+        # Exports
+        if output_json:
+            Path(output_json).write_text(scenario.model_dump_json(indent=2))
+            console.print(f"[dim]Saved JSON to {output_json}[/dim]")
 
-        # 4. Generate Plot
-        plot_merger_impact(results)
+        if not no_plots:
+            plot_merger_impact(scenario.model_dump())
 
-    except ValueError as e:
+    except Exception as e:
         console.print(f"[bold red]Error:[/bold red] {e}")
+        # Re-raise the exception so Pytest can catch the traceback instead of just exiting
+        import sys
+
+        if "pytest" in sys.modules:
+            raise
         raise typer.Exit(1)
 
 
 @app.command()
 def ui():
-    """
-    Launch the interactive Streamlit Web Dashboard.
-    """
+    """Launch the interactive Streamlit dashboard."""
     import subprocess
     from pathlib import Path
 
     app_path = Path(__file__).parent / "app.py"
-    console.print("[bold green]Starting Streamlit Server...[/bold green]")
     subprocess.run(["streamlit", "run", str(app_path)])
 
 

@@ -1,29 +1,46 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
 [project]
 name = "merger-sim"
 version = "0.1.0"
-description = "A quantitative antitrust toolkit for HHI market concentration and merger simulation."
+description = "HHI-based market concentration and merger simulation toolkit."
 authors = [{ name = "An Vo", email = "thanhan25@gmail.com" }]
 readme = "README.md"
 requires-python = ">=3.10"
+license = { text = "MIT" }
+
+# Core library: math + CLI + basic plotting
 dependencies = [
     "pandas>=2.0.0",
     "matplotlib>=3.7.0",
-    "seaborn>=0.12.0",
     "typer>=0.9.0",
     "rich>=13.0.0",
-    "google-cloud-bigquery>=3.42.1",
-    "db-dtypes>=1.7.0",
-    "google-cloud-bigquery-storage>=2.39.0",
-    "streamlit>=1.58.0",
-    "plotly>=6.8.0",
+    "pydantic>=2.13.4",
+    "mypy>=2.1.0",
 ]
 
 [project.optional-dependencies]
+ui = [
+    "streamlit>=1.58.0",
+    "plotly>=6.8.0",
+    "seaborn>=0.12.0",
+]
+bigquery = [
+    "google-cloud-bigquery>=3.42.1",
+    "google-cloud-bigquery-storage>=2.39.0",
+    "db-dtypes>=1.7.0",
+]
+notebooks = [
+    "jupyter>=1.1.1",
+]
 dev = [
     "pytest>=7.0.0",
-    "black>=23.0.0",
-    "ruff>=0.1.0",
+    "pytest-cov>=7.1.0",
+    "ruff>=0.15.0",
     "mypy>=1.0.0",
+    "pre-commit>=4.6.0",
 ]
 
 [project.scripts]
@@ -33,16 +50,19 @@ merger-sim = "merger_sim.cli:app"
 line-length = 88
 target-version = "py310"
 
-[build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
+[tool.pytest.ini_options]
+filterwarnings = [
+    "ignore::DeprecationWarning:db_dtypes.*:",
+]
+
+# Explicit wheel package selection for src layout
+[tool.hatch.build.targets.wheel]
+packages = ["src/merger_sim"]
 
 [dependency-groups]
 dev = [
-    "pre-commit>=4.6.0",
+    "pytest-mock>=3.15.1",
 ]
 
-[tool.pytest.ini_options]
-filterwarnings = [
-    "ignore::DeprecationWarning:db_dtypes.*:"
-]
+[tool.mypy]
+ignore_missing_imports = true

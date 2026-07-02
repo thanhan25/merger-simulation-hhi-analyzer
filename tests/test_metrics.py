@@ -1,39 +1,39 @@
 import pytest
-import pandas as pd
 from merger_sim.metrics import calculate_hhi, evaluate_antitrust_risk
 
 
 def test_calculate_hhi_standard():
-    """Test standard HHI calculation for a simple market."""
-    shares = pd.Series([50, 30, 20])
-    # 50^2 + 30^2 + 20^2 = 2500 + 900 + 400 = 3800
-    assert calculate_hhi(shares) == 3800.0
+    """Test standard HHI calculation."""
+    shares = [40.0, 30.0, 30.0]
+    assert calculate_hhi(shares) == 3400.0
 
 
 def test_calculate_hhi_monopoly():
-    """A pure monopoly should have an HHI of exactly 10,000."""
-    shares = pd.Series([100])
+    """Test monopoly HHI."""
+    shares = [100.0]
     assert calculate_hhi(shares) == 10000.0
 
 
 def test_calculate_hhi_exceeds_100():
     """Should raise an error if market shares sum to > 100%."""
-    shares = pd.Series([60, 50])
-    with pytest.raises(ValueError, match="cannot exceed 100%"):
+    shares = [60.0, 50.0]
+    with pytest.raises(ValueError, match="Market shares cannot sum to more than 100%."):
         calculate_hhi(shares)
 
 
 def test_evaluate_antitrust_risk_safe():
-    """Test safe harbor threshold."""
-    # Pre: 1000, Post: 1050 (Unconcentrated, small delta)
-    concentration, risk = evaluate_antitrust_risk(1000, 1050)
+    """Test Safe Harbor thresholds."""
+    concentration, risk = evaluate_antitrust_risk(
+        pre_hhi=1000, post_hhi=1200, delta=200
+    )
     assert concentration == "Unconcentrated"
-    assert "Low Risk" in risk
+    assert "Safe Harbor" in risk
 
 
 def test_evaluate_antitrust_risk_red_flag():
-    """Test major red flag threshold."""
-    # Pre: 2600, Post: 3000 (Highly Concentrated, Delta > 200)
-    concentration, risk = evaluate_antitrust_risk(2600, 3000)
+    """Test High Risk thresholds."""
+    concentration, risk = evaluate_antitrust_risk(
+        pre_hhi=2400, post_hhi=2800, delta=400
+    )
     assert concentration == "Highly Concentrated"
     assert "High Risk" in risk

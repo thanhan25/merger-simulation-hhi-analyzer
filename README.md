@@ -1,89 +1,76 @@
 
 # Merger Simulation & Market Concentration Analyzer
 
-[![CI/CD Pipeline](https://github.com/thanhan25/merger-simulation-hhi-analyzer/actions/workflows/ci.yml/badge.svg)](https://github.com/thanhan25/merger-simulation-hhi-analyzer/actions/workflows/ci.yml)
+[![CI/CD Pipeline](https://github.com/thanhan25/merger-simulation-hhi-analyzer/actions/workflows/ci.yml/badge.svg)](#)
 [![Python 3.13](https://img.shields.io/badge/Python-3.13-blue.svg)](https://python.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Code Style: Ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
 
-An enterprise-grade quantitative antitrust toolkit engineered for competition economists, pricing strategists, and regulatory analysts. This package automates the calculation of the Herfindahl-Hirschman Index (HHI), flags regulatory risks, and simulates the market impact of corporate mergers under the joint U.S. DOJ and FTC Horizontal Merger Guidelines.
+A Python library and interactive dashboard for HHI market concentration measurement and merger impact simulation, featuring native Google Cloud BigQuery integration.
 
-## 📊 Core Architecture & Capabilities
+![Dashboard Preview](assets/dashboard-preview.PNG)
 
-* **Interactive Streamlit Dashboard:** A localized web interface for real-time scenario modeling, drag-and-drop CSV ingestion, and dynamic market concentration visualization via Plotly.
-* **Institutional Data Pipelines:** Natively integrates with Google Cloud BigQuery, allowing users to execute simulations directly against cloud data warehouses using standard SQL queries, bypassing local memory limits.
-* **Rigorous Econometrics Engine:** Calculates precise Pre-Merger, Post-Merger, and $\Delta$ metrics, mapping outputs directly to actionable regulatory risk tiers (Safe Harbor, Moderate Risk, High Risk).
-* **Historical Case Studies:** Includes executable Jupyter notebooks analyzing landmark blocked mergers (e.g., AT&T and T-Mobile).
+## 🧮 Econometric Methodology
 
-## 🧮 Mathematical Methodology (HHI)
+This toolkit mathematically enforces the joint antitrust frameworks established by the U.S. Department of Justice (DOJ) and the Federal Trade Commission (FTC).
 
-The Herfindahl-Hirschman Index is calculated by squaring the market share of each firm competing in the market and then summing the resulting numbers.
+The core metric is the **Herfindahl-Hirschman Index (HHI)**, calculated by squaring the market share of each firm competing in the market and summing the results:
 
-$HHI = \sum_{i=1}^{N} s_i^2$
+$$
+HHI = \sum_{i=1}^{N} s_i^2
+$$
 
 Where $s_i$ is the market share of firm $i$, and $N$ is the total number of firms. The index ranges from near zero (perfect competition) to 10,000 (a pure monopoly).
 
-**Regulatory Thresholds (DOJ & FTC Guidelines):**
+### Regulatory Risk Thresholds (2023 Guidelines)
 
-* **Unconcentrated Markets:** HHI below 1,500.
-* **Moderately Concentrated:** HHI between 1,500 and 2,500.
-* **Highly Concentrated:** HHI above 2,500. (Mergers producing a $\Delta$ HHI > 200 in this tier are presumed likely to enhance market power).
+The simulator evaluates antitrust risk based on the post-merger concentration and the resulting $\Delta$ HHI:
 
-For detailed methodological breakdown and examples, refer to the `docs/` directory.
+* **Unconcentrated Markets ($HHI < 1500$):** Safe harbor; mergers rarely require further analysis.
+* **Moderately Concentrated ($1500 \le HHI \le 2500$):** Mergers producing a $\Delta HHI > 100$ warrant significant scrutiny and Phase II investigations.
+* **Highly Concentrated ($HHI > 2500$):** Mergers producing a $\Delta HHI > 100$ are presumed to enhance market power. A $\Delta HHI > 200$ triggers strict regulatory blocks and necessitates asset divestitures.
 
-## ⚙️ Installation & Setup
+*(Note: Alternative jurisdictional thresholds for the EU Commission and Bundeskartellamt are detailed in `docs/jurisdictions.md`).*
 
-This repository requires Python 3.13+ and utilizes [uv](https://github.com/astral-sh/uv) for high-speed environment management.
+## 🚀 Quickstart & Installation
+
+Competition economists and data scientists repeatedly reimplement HHI calculations for each project. `merger-sim` provides a standard, strongly-typed (`Pydantic`) implementation so you can focus on policy rather than pipeline plumbing.
+
+**1. Install via `uv` (Recommended)**
 
 ```bash
-# Clone the repository
-git clone [https://github.com/thanhan25/merger-simulation-hhi-analyzer.git](https://github.com/thanhan25/merger-simulation-hhi-analyzer.git)
-cd merger-simulation-hhi-analyzer
-
-# Sync dependencies and install the project in isolated virtual environment
+# Install everything (UI + BigQuery + Data Science Notebooks)
 uv sync --all-extras
 ```
 
-## 🚀 Usage Guide
-
-### 1. The Interactive Web Dashboard (Recommended)
-
-Launch the Streamlit interface for visual scenario modeling:
+**2. Launch the Web Dashboard**
 
 ```bash
-# Windows
-.\scripts\run_app.ps1
-
-# Linux/Mac
-./scripts/run_app.sh
-
-# Or directly via uv
 uv run merger-sim ui
 ```
 
-### 2. The Command Line Interface (CLI)
+## 💻 CLI Usage Guide
 
-For automated workflows and rapid terminal analysis, utilize the `analyze` command.
+For automated workflows and headless data pipelines, utilize the CLI wrapper.
 
 **Option A: Local CSV Analysis**
-Target historical or proprietary local data.
 
 ```bash
 uv run merger-sim analyze "T-Mobile" "Sprint" --file data/raw/telecom_market_2019.csv
 ```
 
 **Option B: Enterprise BigQuery Execution**
-Execute standard SQL against Google Cloud infrastructure. *(Requires Google Cloud Authentication)*.
+Execute standard SQL against Google Cloud infrastructure to bypass local memory limits.
 
 ```bash
 uv run merger-sim analyze "AT&T" "Verizon" --query "SELECT firm, revenue FROM \`merger-sim-project.markets.telecom_2026\`"
 ```
 
-**Option C: Rapid Prototyping**
-Generate synthesized mock data to validate the mathematical engine instantly.
+**Option C: Headless Data Export**
+Export typed `MergerScenario` models directly to JSON for downstream integration.
 
 ```bash
-uv run merger-sim analyze "Firm B" "Firm C" --mock
+uv run merger-sim analyze "Firm B" "Firm C" --mock --output-json results.json --no-plots
 ```
 
 ## 📂 Repository Structure
@@ -91,14 +78,15 @@ uv run merger-sim analyze "Firm B" "Firm C" --mock
 ```text
 merger-simulation-market-concentration-analyzer/
 ├── .github/workflows/       # CI/CD pipelines (Pytest & Release automations)
-├── docs/                    # Econometric methodology and execution examples
+├── docs/                    # Methodological deep-dives and execution examples
 ├── notebooks/               # Jupyter case studies (e.g., AT&T + T-Mobile simulation)
-├── scripts/                 # Cross-platform deployment scripts (run_app.ps1, run_app.sh)
+├── scripts/                 # Cross-platform deployment scripts
 ├── src/merger_sim/          # Core package source code
 │   ├── app.py               # Streamlit web frontend
 │   ├── cli.py               # Typer command-line routing
 │   ├── io.py                # CSV and BigQuery ingestion pipelines
 │   ├── metrics.py           # Mathematical logic and HHI functions
+│   ├── models.py            # Strict Pydantic data validation structures
 │   ├── plotting.py          # Matplotlib/Seaborn static chart generation
 │   └── simulation.py        # Merger scenario execution engine
 ├── tests/                   # Pytest suite validating mathematical precision
@@ -117,4 +105,4 @@ uv run ruff check src/ tests/
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License - see the `LICENSE` file for details.

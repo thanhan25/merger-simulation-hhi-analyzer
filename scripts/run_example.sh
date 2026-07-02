@@ -1,3 +1,3 @@
 #!/bin/bash
 echo "Booting Merger Simulation Platform..."
-uv run merger-sim ui
+uv run streamlit run src/merger_sim/app.py
